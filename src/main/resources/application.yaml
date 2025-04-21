@@ -1,0 +1,19 @@
+server:
+  port: 9000
+
+logging:
+  level:
+    web: debug
+    sql: debug
+    org.springframework.security: trace
+
+spring:
+  security:
+    user:
+      name: "user"
+      password: "password"
+      roles:
+        - "USER"
+    oauth2:
+      authorizationserver:
+        issuer: http://localhost:9000
