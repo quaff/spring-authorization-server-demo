@@ -16,4 +16,4 @@ spring:
         - "USER"
     oauth2:
       authorizationserver:
-        issuer: http://localhost:9000
+        issuer: http://localhost:${server.port:8080}
