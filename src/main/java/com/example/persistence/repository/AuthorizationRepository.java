@@ -11,8 +11,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface AuthorizationRepository extends JpaRepository<Authorization, String> {
 
-	Optional<Authorization> findByState(String state);
-
 	Optional<Authorization> findByAuthorizationCodeValue(String authorizationCode);
 
 	Optional<Authorization> findByAccessTokenValue(String accessToken);
@@ -23,8 +21,7 @@ public interface AuthorizationRepository extends JpaRepository<Authorization, St
 
 	Optional<Authorization> findByDeviceCodeValue(String deviceCode);
 
-	@Query("select a from Authorization a where a.state = :token" +
-			" or a.authorizationCodeValue = :token" +
+	@Query("select a from Authorization a where a.authorizationCodeValue = :token" +
 			" or a.accessTokenValue = :token" +
 			" or a.refreshTokenValue = :token" +
 			" or a.userCodeValue = :token" +
