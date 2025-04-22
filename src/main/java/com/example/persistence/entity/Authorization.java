@@ -45,15 +45,6 @@ public class Authorization {
 	@Column(length = 2000)
 	private String refreshTokenMetadata;
 
-	@Column(length = 4000)
-	private String oidcIdTokenValue;
-	private Instant oidcIdTokenIssuedAt;
-	private Instant oidcIdTokenExpiresAt;
-	@Column(length = 2000)
-	private String oidcIdTokenMetadata;
-	@Column(length = 2000)
-	private String oidcIdTokenClaims;
-
 	@Column(length = 4000, unique = true)
 	private String userCodeValue;
 	private Instant userCodeIssuedAt;
@@ -234,46 +225,6 @@ public class Authorization {
 
 	public void setRefreshTokenMetadata(String refreshTokenMetadata) {
 		this.refreshTokenMetadata = refreshTokenMetadata;
-	}
-
-	public String getOidcIdTokenValue() {
-		return oidcIdTokenValue;
-	}
-
-	public void setOidcIdTokenValue(String idToken) {
-		this.oidcIdTokenValue = idToken;
-	}
-
-	public Instant getOidcIdTokenIssuedAt() {
-		return oidcIdTokenIssuedAt;
-	}
-
-	public void setOidcIdTokenIssuedAt(Instant idTokenIssuedAt) {
-		this.oidcIdTokenIssuedAt = idTokenIssuedAt;
-	}
-
-	public Instant getOidcIdTokenExpiresAt() {
-		return oidcIdTokenExpiresAt;
-	}
-
-	public void setOidcIdTokenExpiresAt(Instant idTokenExpiresAt) {
-		this.oidcIdTokenExpiresAt = idTokenExpiresAt;
-	}
-
-	public String getOidcIdTokenMetadata() {
-		return oidcIdTokenMetadata;
-	}
-
-	public void setOidcIdTokenMetadata(String idTokenMetadata) {
-		this.oidcIdTokenMetadata = idTokenMetadata;
-	}
-
-	public String getOidcIdTokenClaims() {
-		return oidcIdTokenClaims;
-	}
-
-	public void setOidcIdTokenClaims(String idTokenClaims) {
-		this.oidcIdTokenClaims = idTokenClaims;
 	}
 
 	public String getUserCodeValue() {

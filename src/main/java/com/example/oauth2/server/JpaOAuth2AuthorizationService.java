@@ -21,8 +21,6 @@ import org.springframework.security.oauth2.core.OAuth2RefreshToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.OAuth2UserCode;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
-import org.springframework.security.oauth2.core.oidc.OidcIdToken;
-import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -78,8 +76,6 @@ public class JpaOAuth2AuthorizationService implements OAuth2AuthorizationService
 			result = this.authorizationRepository.findByAccessTokenValue(token);
 		} else if (OAuth2ParameterNames.REFRESH_TOKEN.equals(tokenType.getValue())) {
 			result = this.authorizationRepository.findByRefreshTokenValue(token);
-		} else if (OidcParameterNames.ID_TOKEN.equals(tokenType.getValue())) {
-			result = this.authorizationRepository.findByOidcIdTokenValue(token);
 		} else if (OAuth2ParameterNames.USER_CODE.equals(tokenType.getValue())) {
 			result = this.authorizationRepository.findByUserCodeValue(token);
 		} else if (OAuth2ParameterNames.DEVICE_CODE.equals(tokenType.getValue())) {
@@ -132,15 +128,6 @@ public class JpaOAuth2AuthorizationService implements OAuth2AuthorizationService
 					entity.getRefreshTokenIssuedAt(),
 					entity.getRefreshTokenExpiresAt());
 			builder.token(refreshToken, metadata -> metadata.putAll(parseMap(entity.getRefreshTokenMetadata())));
-		}
-
-		if (entity.getOidcIdTokenValue() != null) {
-			OidcIdToken idToken = new OidcIdToken(
-					entity.getOidcIdTokenValue(),
-					entity.getOidcIdTokenIssuedAt(),
-					entity.getOidcIdTokenExpiresAt(),
-					parseMap(entity.getOidcIdTokenClaims()));
-			builder.token(idToken, metadata -> metadata.putAll(parseMap(entity.getOidcIdTokenMetadata())));
 		}
 
 		if (entity.getUserCodeValue() != null) {
@@ -204,19 +191,6 @@ public class JpaOAuth2AuthorizationService implements OAuth2AuthorizationService
 				entity::setRefreshTokenExpiresAt,
 				entity::setRefreshTokenMetadata
 		);
-
-		OAuth2Authorization.Token<OidcIdToken> oidcIdToken =
-				authorization.getToken(OidcIdToken.class);
-		setTokenValues(
-				oidcIdToken,
-				entity::setOidcIdTokenValue,
-				entity::setOidcIdTokenIssuedAt,
-				entity::setOidcIdTokenExpiresAt,
-				entity::setOidcIdTokenMetadata
-		);
-		if (oidcIdToken != null) {
-			entity.setOidcIdTokenClaims(writeMap(oidcIdToken.getClaims()));
-		}
 
 		OAuth2Authorization.Token<OAuth2UserCode> userCode =
 				authorization.getToken(OAuth2UserCode.class);

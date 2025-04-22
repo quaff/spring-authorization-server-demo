@@ -19,8 +19,6 @@ public interface AuthorizationRepository extends JpaRepository<Authorization, St
 
 	Optional<Authorization> findByRefreshTokenValue(String refreshToken);
 
-	Optional<Authorization> findByOidcIdTokenValue(String idToken);
-
 	Optional<Authorization> findByUserCodeValue(String userCode);
 
 	Optional<Authorization> findByDeviceCodeValue(String deviceCode);
@@ -29,7 +27,6 @@ public interface AuthorizationRepository extends JpaRepository<Authorization, St
 			" or a.authorizationCodeValue = :token" +
 			" or a.accessTokenValue = :token" +
 			" or a.refreshTokenValue = :token" +
-			" or a.oidcIdTokenValue = :token" +
 			" or a.userCodeValue = :token" +
 			" or a.deviceCodeValue = :token"
 	)
