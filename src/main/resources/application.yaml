@@ -17,3 +17,20 @@ spring:
     oauth2:
       authorizationserver:
         issuer: http://localhost:${server.port:8080}
+        client:
+          default:
+            registration:
+              client-id: default
+              client-secret: default
+              client-authentication-methods:
+                - client_secret_basic
+              authorization-grant-types:
+                - authorization_code
+                - refresh_token
+            require-authorization-consent: true
+            token:
+              access-token-time-to-live: 30m
+              refresh-token-time-to-live: 30m
+              authorization-code-time-to-live: 30m
+              device-code-time-to-live: 30m
+              reuse-refresh-tokens: true

@@ -7,6 +7,7 @@ import java.util.Set;
 import com.example.persistence.entity.Client;
 import com.example.persistence.repository.ClientRepository;
 
+import org.springframework.boot.autoconfigure.security.oauth2.server.servlet.OAuth2AuthorizationServerProperties;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -20,9 +21,11 @@ import org.springframework.util.StringUtils;
 @Component
 public class JpaRegisteredClientRepository implements RegisteredClientRepository {
 	private final ClientRepository clientRepository;
+	private final OAuth2AuthorizationServerProperties.Client defaultClient;
 
-	public JpaRegisteredClientRepository(ClientRepository clientRepository) {
+	public JpaRegisteredClientRepository(ClientRepository clientRepository, OAuth2AuthorizationServerProperties oauth2AuthorizationServerProperties) {
 		this.clientRepository = clientRepository;
+		this.defaultClient = oauth2AuthorizationServerProperties.getClient().get("default");
 	}
 
 	@Override
@@ -68,9 +71,24 @@ public class JpaRegisteredClientRepository implements RegisteredClientRepository
 				.postLogoutRedirectUris((uris) -> uris.addAll(postLogoutRedirectUris))
 				.scopes((scopes) -> scopes.addAll(clientScopes));
 
-		//TODO from configuration properties
-		builder.clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build());
-		builder.tokenSettings(TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE).build());
+		ClientSettings.Builder clientSettingsBuilder = ClientSettings.builder();
+		if (this.defaultClient != null) {
+			clientSettingsBuilder.requireAuthorizationConsent(this.defaultClient.isRequireAuthorizationConsent());
+		}
+		builder.clientSettings(clientSettingsBuilder.build());
+
+
+		TokenSettings.Builder tokenSettingsBuilder = TokenSettings.builder().accessTokenFormat(OAuth2TokenFormat.REFERENCE);
+		if (this.defaultClient != null) {
+			OAuth2AuthorizationServerProperties.Token token = this.defaultClient.getToken();
+			if (token != null) {
+				tokenSettingsBuilder.accessTokenTimeToLive(token.getAccessTokenTimeToLive());
+				tokenSettingsBuilder.refreshTokenTimeToLive(token.getRefreshTokenTimeToLive());
+				tokenSettingsBuilder.authorizationCodeTimeToLive(token.getAuthorizationCodeTimeToLive());
+				tokenSettingsBuilder.deviceCodeTimeToLive(token.getDeviceCodeTimeToLive());
+			}
+		}
+		builder.tokenSettings(tokenSettingsBuilder.build());
 
 		return builder.build();
 	}
