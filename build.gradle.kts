@@ -4,7 +4,7 @@ plugins {
 	java
 }
 
-group = "com.example.batch"
+group = "com.example.oauth2"
 version = "0.0.1-SNAPSHOT"
 
 repositories {
