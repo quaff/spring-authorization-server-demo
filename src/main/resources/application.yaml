@@ -7,30 +7,41 @@ logging:
     sql: debug
     org.springframework.security: trace
 
-spring:
-  security:
-    user:
-      name: "user"
-      password: "password"
-      roles:
-        - "USER"
-    oauth2:
-      authorizationserver:
-        issuer: http://localhost:${server.port:8080}
-        client:
-          default:
-            registration:
-              client-id: default
-              client-secret: default
-              client-authentication-methods:
-                - client_secret_basic
-              authorization-grant-types:
-                - authorization_code
-                - refresh_token
-            require-authorization-consent: true
-            token:
-              access-token-time-to-live: 30m
-              refresh-token-time-to-live: 30m
-              authorization-code-time-to-live: 30m
-              device-code-time-to-live: 30m
-              reuse-refresh-tokens: true
+spring.datasource:
+  name: ${spring.application.name}
+  url: jdbc:mysql://localhost:3306/demo?createDatabaseIfNotExist=true&serverTimezone=Asia/Shanghai&autoReconnectForPools=true&useUnicode=true&useServerPrepStmts=true&cachePrepStmts=true&tinyInt1isBit=false&socketTimeout=60000&sslMode=DISABLED&allowPublicKeyRetrieval=true
+  username: ${mysql.username:root}
+  password: ${mysql.password:}
+
+spring.sql.init:
+  schema-locations:
+    - "classpath:org/springframework/security/oauth2/server/authorization/oauth2-authorization-schema.sql"
+    - "classpath:org/springframework/security/oauth2/server/authorization/oauth2-authorization-consent-schema.sql"
+  mode: always
+  continue-on-error: true
+
+spring.security.oauth2.authorizationserver:
+  issuer: http://localhost:${server.port} # replace it with loadbalancer's host and port
+  client.mcp-client:
+    registration:
+      client-id: mcp-client
+      client-secret: "{noop}mcp-secret"
+      client-authentication-methods:
+        - client_secret_basic
+        - none
+      authorization-grant-types:
+        - authorization_code
+        - client_credentials
+        - refresh_token
+      scopes:
+        - mcp
+      redirect-uris:
+        - http://127.0.0.1:8080/authorize/oauth2/code/authserver
+        - http://localhost:8080/authorize/oauth2/code/authserver
+        - http://localhost:6274/oauth/callback #MCP Inspector
+    require-authorization-consent: true
+    #require-proof-key: true
+    token:
+      access-token-format: reference #disable JWT
+      access-token-time-to-live: 30d
+      reuse-refresh-tokens: true

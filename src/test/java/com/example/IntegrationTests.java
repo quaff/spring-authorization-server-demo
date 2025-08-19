@@ -11,11 +11,13 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Map;
 
-import static com.example.DatabaseInitializer.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class IntegrationTests {
+
+    private static final String DEMO_CLIENT_ID = "mcp-client";
+    private static final String DEMO_CLIENT_SECRET = "mcp-secret";
 
     @LocalServerPort
     private int port;
