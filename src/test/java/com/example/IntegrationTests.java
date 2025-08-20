@@ -5,6 +5,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.support.BasicAuthenticationInterceptor;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
@@ -23,7 +24,7 @@ public class IntegrationTests {
     private int port;
 
     @Test
-    void test() {
+    void testClientCredentials() {
         RestClient restClient = restClient();
 
         // create access token
@@ -61,6 +62,29 @@ public class IntegrationTests {
                 });
         assertThat(result).containsEntry("active", false);
     }
+
+    @Test
+    void testSessionIdAsAccessToken() {
+
+        // create access token
+        ResponseEntity<Void> entity = RestClient.builder().baseUrl("http://localhost:" + port).build().post().uri("/login")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(MultiValueMap.fromSingleValue(Map.of("username", "user", "password", "password")))
+                .retrieve().toBodilessEntity();
+        String accessToken = entity.getHeaders().get("X-Auth-Token").getFirst();
+
+        // introspect access token
+        Map<String, Object> result = restClient().post().uri("/oauth2/introspect")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(MultiValueMap.fromSingleValue(Map.of("token", accessToken)))
+                .retrieve().body(new ParameterizedTypeReference<>() {
+                });
+        assertThat(result).containsEntry("active", true);
+        assertThat(result).containsEntry("token_type", "Bearer");
+        assertThat(result).containsEntry("client_id", DEMO_CLIENT_ID);
+        assertThat(result).containsEntry("sub", "user");
+    }
+
 
     private RestClient restClient() {
         return RestClient.builder().baseUrl("http://localhost:" + port)
