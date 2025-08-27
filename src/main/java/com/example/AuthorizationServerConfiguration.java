@@ -1,9 +1,9 @@
 package com.example;
 
+import org.springframework.boot.autoconfigure.security.oauth2.server.servlet.OAuth2AuthorizationServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
-import org.springframework.core.env.Environment;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.security.config.Customizer;
@@ -38,17 +38,27 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import static org.springframework.security.oauth2.server.authorization.token.OAuth2TokenClaimNames.*;
 
 @Configuration
 @EnableRedisHttpSession
 class AuthorizationServerConfiguration {
+
+    public static final String DEFAULT_CLIENT_ID = "mcp-client";
+
+    private final OAuth2AuthorizationServerProperties authorizationServerProperties;
+
+    AuthorizationServerConfiguration(OAuth2AuthorizationServerProperties authorizationServerProperties) {
+        this.authorizationServerProperties = authorizationServerProperties;
+    }
 
     @Bean
     @Order(0)
     SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfigurer authorizationServerConfigurer =
                 OAuth2AuthorizationServerConfigurer.authorizationServer();
-
         http.securityMatcher(authorizationServerConfigurer.getEndpointsMatcher())
                 .with(authorizationServerConfigurer, Customizer.withDefaults())
                 .authorizeHttpRequests((authorize) -> authorize.anyRequest().authenticated())
@@ -72,19 +82,25 @@ class AuthorizationServerConfiguration {
 
     @Bean
     public JdbcOAuth2AuthorizationService oauth2AuthorizationService(JdbcOperations jdbcOperations, RegisteredClientRepository registeredClientRepository,
-                                                                     SessionRepository<? extends Session> sessionRepository, Environment env) {
+                                                                     SessionRepository<? extends Session> sessionRepository) {
         return new JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository) {
             @Override
             public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
-                Session session = sessionRepository.findById(token);
-                if (session != null) {
-                    SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
-                    if (context != null) {
+                if (tokenType == null || tokenType.equals(OAuth2TokenType.ACCESS_TOKEN)) {
+                    Session session = sessionRepository.findById(token);
+                    if (session != null) {
+                        SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+                        if (context == null) {
+                            return null;
+                        }
                         Authentication authentication = context.getAuthentication();
+                        if (authentication == null) {
+                            return null;
+                        }
                         String username = authentication.getName();
-                        String clientId = "mcp-client";
-                        Set<String> scopes = Set.of("mcp");
-                        RegisteredClient client = registeredClientRepository.findByClientId(clientId);
+                        Set<String> scopes = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("SCOPE_"))
+                                .map(ga -> ga.getAuthority().substring(6)).collect(Collectors.toSet());
+                        RegisteredClient client = registeredClientRepository.findByClientId(DEFAULT_CLIENT_ID);
                         if (client == null) {
                             return null;
                         }
@@ -95,12 +111,12 @@ class AuthorizationServerConfiguration {
                         OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client);
                         builder.token(accessToken, metadata -> {
                                     Map<String, Object> claims = Map.of(
-                                            "sub", username,
-                                            "aud", List.of(clientId),
-                                            "nbf", issuedAt,
+                                            SUB, username,
+                                            AUD, List.of(DEFAULT_CLIENT_ID),
+                                            NBF, issuedAt,
                                             "scope", String.join(",", scopes),
-                                            "iss", env.getProperty("spring.security.oauth2.authorizationserver.issuer", ""),
-                                            "jti", token
+                                            ISS, authorizationServerProperties.getIssuer(),
+                                            JTI, token
                                     );
                                     metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, claims);
                                 }).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
