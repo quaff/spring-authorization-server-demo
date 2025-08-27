@@ -17,6 +17,7 @@ import org.springframework.security.oauth2.server.authorization.JdbcOAuth2Author
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
@@ -62,6 +63,11 @@ class AuthorizationServerConfiguration {
                 .csrf(CsrfConfigurer::disable)
                 .cors(Customizer.withDefaults());
         return http.build();
+    }
+
+    @Bean
+    public JdbcRegisteredClientRepository registeredClientRepository(JdbcOperations jdbcOperations) {
+        return new JdbcRegisteredClientRepository(jdbcOperations);
     }
 
     @Bean
