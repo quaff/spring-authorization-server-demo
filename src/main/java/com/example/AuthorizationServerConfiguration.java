@@ -35,6 +35,7 @@ import org.springframework.session.web.http.HttpSessionIdResolver;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -110,14 +111,21 @@ class AuthorizationServerConfiguration {
                                 .plus(Duration.ofDays(30)), scopes);
                         OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client);
                         builder.token(accessToken, metadata -> {
-                                    Map<String, Object> claims = Map.of(
+                                    Map<String, Object> claims = new HashMap<>(Map.of(
                                             SUB, username,
                                             AUD, List.of(DEFAULT_CLIENT_ID),
                                             NBF, issuedAt,
-                                            "scope", String.join(",", scopes),
                                             ISS, authorizationServerProperties.getIssuer(),
                                             JTI, token
-                                    );
+                                    ));
+                                    if (!scopes.isEmpty()) {
+                                        claims.put("scope", String.join(" ", scopes));
+                                    }
+                                    Set<String> roles = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("ROLE_"))
+                                            .map(ga -> ga.getAuthority().substring(5)).collect(Collectors.toSet());
+                                    if (!roles.isEmpty()) {
+                                        claims.put("role", String.join(" ", roles));
+                                    }
                                     metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, claims);
                                 }).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                                 .id(token).principalName(username).authorizedScopes(scopes);
