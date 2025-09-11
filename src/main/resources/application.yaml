@@ -18,6 +18,7 @@ spring.sql.init:
     - "classpath:org/springframework/security/oauth2/server/authorization/client/oauth2-registered-client-schema.sql"
     - "classpath:org/springframework/security/oauth2/server/authorization/oauth2-authorization-schema.sql"
     - "classpath:org/springframework/security/oauth2/server/authorization/oauth2-authorization-consent-schema.sql"
+    - "classpath:com/example/api_key.sql"
   mode: always
   continue-on-error: true
 

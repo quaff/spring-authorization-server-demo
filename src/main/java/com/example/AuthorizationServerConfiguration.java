@@ -12,6 +12,8 @@ import org.springframework.security.config.annotation.web.configurers.CsrfConfig
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationConsentService;
@@ -37,6 +39,7 @@ import org.springframework.session.web.http.HttpSessionIdResolver;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -84,7 +87,7 @@ class AuthorizationServerConfiguration {
 
     @Bean
     public JdbcOAuth2AuthorizationService oauth2AuthorizationService(JdbcOperations jdbcOperations, RegisteredClientRepository registeredClientRepository,
-                                                                     SessionRepository<? extends Session> sessionRepository) {
+                                                                     SessionRepository<? extends Session> sessionRepository, ApiKeyService apiKeyService, UserDetailsService userDetailsService) {
         return new JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository) {
             @Override
             public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
@@ -105,6 +108,12 @@ class AuthorizationServerConfiguration {
                                     registeredClientRepository.findByClientId(DEFAULT_CLIENT_ID), session.getCreationTime(), Instant.now().plus(session.getMaxInactiveInterval()));
                         }
                     }
+                    ApiKey apiKey = apiKeyService.findById(token);
+                    if (apiKey != null) {
+                        UserDetails userDetails = userDetailsService.loadUserByUsername(apiKey.getPrincipalName());
+                        return buildOAuth2Authorization(token, userDetails.getUsername(), userDetails.getAuthorities(),
+                                registeredClientRepository.findByClientId(DEFAULT_CLIENT_ID), apiKey.getCreatedAt().atZone(ZoneId.systemDefault()).toInstant(), Instant.now().plus(Duration.ofDays(365)));
+                    }
                 }
                 return super.findByToken(token, tokenType);
             }
@@ -114,6 +123,11 @@ class AuthorizationServerConfiguration {
     @Bean
     public JdbcOAuth2AuthorizationConsentService oauth2AuthorizationConsentService(JdbcOperations jdbcOperations, RegisteredClientRepository registeredClientRepository) {
         return new JdbcOAuth2AuthorizationConsentService(jdbcOperations, registeredClientRepository);
+    }
+
+    @Bean
+    public JdbcApiKeyService apiKeyService(JdbcOperations jdbcOperations) {
+        return new JdbcApiKeyService(jdbcOperations);
     }
 
     @Bean

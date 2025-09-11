@@ -1,6 +1,7 @@
 package com.example;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.core.ParameterizedTypeReference;
@@ -22,6 +23,9 @@ public class IntegrationTests {
 
     @LocalServerPort
     private int port;
+
+    @Autowired
+    ApiKeyService apiKeyService;
 
     @Test
     void testClientCredentials() {
@@ -85,6 +89,23 @@ public class IntegrationTests {
         assertThat(result).containsEntry("sub", "user");
     }
 
+    @Test
+    void testApiKeyAsAccessToken() {
+
+        // create api key
+        String accessToken = apiKeyService.create("Test Key", "user");
+
+        // introspect access token
+        Map<String, Object> result = restClient().post().uri("/oauth2/introspect")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(MultiValueMap.fromSingleValue(Map.of("token", accessToken)))
+                .retrieve().body(new ParameterizedTypeReference<>() {
+                });
+        assertThat(result).containsEntry("active", true);
+        assertThat(result).containsEntry("token_type", "Bearer");
+        assertThat(result).containsEntry("client_id", DEMO_CLIENT_ID);
+        assertThat(result).containsEntry("sub", "user");
+    }
 
     private RestClient restClient() {
         return RestClient.builder().baseUrl("http://localhost:" + port)
