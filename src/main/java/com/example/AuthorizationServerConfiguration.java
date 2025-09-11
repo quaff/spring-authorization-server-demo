@@ -26,7 +26,9 @@ import org.springframework.security.web.authentication.LoginUrlAuthenticationEnt
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.util.matcher.MediaTypeRequestMatcher;
 import org.springframework.session.Session;
+import org.springframework.session.SessionIdGenerator;
 import org.springframework.session.SessionRepository;
+import org.springframework.session.UuidSessionIdGenerator;
 import org.springframework.session.data.redis.config.annotation.web.http.EnableRedisHttpSession;
 import org.springframework.session.web.http.CompositeHttpSessionIdResolver;
 import org.springframework.session.web.http.CookieHttpSessionIdResolver;
@@ -48,6 +50,8 @@ import static org.springframework.security.oauth2.server.authorization.token.OAu
 class AuthorizationServerConfiguration {
 
     public static final String DEFAULT_CLIENT_ID = "mcp-client";
+
+    private static final String SESSION_ID_PREFIX = "sid-";
 
     private final OAuth2AuthorizationServerProperties authorizationServerProperties;
 
@@ -88,48 +92,50 @@ class AuthorizationServerConfiguration {
             @Override
             public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
                 if (tokenType == null || tokenType.equals(OAuth2TokenType.ACCESS_TOKEN)) {
-                    Session session = sessionRepository.findById(token);
-                    if (session != null) {
-                        SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
-                        if (context == null) {
-                            return null;
+                    if (token.startsWith(SESSION_ID_PREFIX)) {
+                        Session session = sessionRepository.findById(token);
+                        if (session != null) {
+                            SecurityContext context = session.getAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY);
+                            if (context == null) {
+                                return null;
+                            }
+                            Authentication authentication = context.getAuthentication();
+                            if (authentication == null) {
+                                return null;
+                            }
+                            String username = authentication.getName();
+                            Set<String> scopes = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("SCOPE_"))
+                                    .map(ga -> ga.getAuthority().substring(6)).collect(Collectors.toSet());
+                            RegisteredClient client = registeredClientRepository.findByClientId(DEFAULT_CLIENT_ID);
+                            if (client == null) {
+                                return null;
+                            }
+                            Instant issuedAt = session.getCreationTime();
+                            Instant expiresAt = Instant.now().plus(session.getMaxInactiveInterval());
+                            OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, token, issuedAt, expiresAt
+                                    .plus(Duration.ofDays(30)), scopes);
+                            OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client);
+                            builder.token(accessToken, metadata -> {
+                                        Map<String, Object> claims = new HashMap<>(Map.of(
+                                                SUB, username,
+                                                AUD, List.of(DEFAULT_CLIENT_ID),
+                                                NBF, issuedAt,
+                                                ISS, authorizationServerProperties.getIssuer(),
+                                                JTI, token
+                                        ));
+                                        if (!scopes.isEmpty()) {
+                                            claims.put("scope", String.join(" ", scopes));
+                                        }
+                                        Set<String> roles = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("ROLE_"))
+                                                .map(ga -> ga.getAuthority().substring(5)).collect(Collectors.toSet());
+                                        if (!roles.isEmpty()) {
+                                            claims.put("role", String.join(" ", roles));
+                                        }
+                                        metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, claims);
+                                    }).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                                    .id(token).principalName(username).authorizedScopes(scopes);
+                            return builder.build();
                         }
-                        Authentication authentication = context.getAuthentication();
-                        if (authentication == null) {
-                            return null;
-                        }
-                        String username = authentication.getName();
-                        Set<String> scopes = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("SCOPE_"))
-                                .map(ga -> ga.getAuthority().substring(6)).collect(Collectors.toSet());
-                        RegisteredClient client = registeredClientRepository.findByClientId(DEFAULT_CLIENT_ID);
-                        if (client == null) {
-                            return null;
-                        }
-                        Instant issuedAt = session.getCreationTime();
-                        Instant expiresAt = Instant.now().plus(session.getMaxInactiveInterval());
-                        OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, token, issuedAt, expiresAt
-                                .plus(Duration.ofDays(30)), scopes);
-                        OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client);
-                        builder.token(accessToken, metadata -> {
-                                    Map<String, Object> claims = new HashMap<>(Map.of(
-                                            SUB, username,
-                                            AUD, List.of(DEFAULT_CLIENT_ID),
-                                            NBF, issuedAt,
-                                            ISS, authorizationServerProperties.getIssuer(),
-                                            JTI, token
-                                    ));
-                                    if (!scopes.isEmpty()) {
-                                        claims.put("scope", String.join(" ", scopes));
-                                    }
-                                    Set<String> roles = authentication.getAuthorities().stream().filter(ga -> ga.getAuthority().startsWith("ROLE_"))
-                                            .map(ga -> ga.getAuthority().substring(5)).collect(Collectors.toSet());
-                                    if (!roles.isEmpty()) {
-                                        claims.put("role", String.join(" ", roles));
-                                    }
-                                    metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, claims);
-                                }).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                                .id(token).principalName(username).authorizedScopes(scopes);
-                        return builder.build();
                     }
                 }
                 return super.findByToken(token, tokenType);
@@ -146,5 +152,10 @@ class AuthorizationServerConfiguration {
     HttpSessionIdResolver httpSessionIdResolver() {
         return new CompositeHttpSessionIdResolver(HeaderHttpSessionIdResolver.xAuthToken(),
                 new CookieHttpSessionIdResolver());
+    }
+
+    @Bean
+    public SessionIdGenerator sessionIdGenerator() {
+        return () -> SESSION_ID_PREFIX + UuidSessionIdGenerator.getInstance().generate().replaceAll("-", "");
     }
 }
