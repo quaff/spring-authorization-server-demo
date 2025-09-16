@@ -164,7 +164,7 @@ class AuthorizationServerConfiguration {
                     Set<String> roles = authorities.stream().filter(ga -> ga.getAuthority().startsWith("ROLE_"))
                             .map(ga -> ga.getAuthority().substring(5)).collect(Collectors.toSet());
                     if (!roles.isEmpty()) {
-                        claims.put("role", String.join(" ", roles));
+                        claims.put("role", roles);
                     }
                     metadata.put(OAuth2Authorization.Token.CLAIMS_METADATA_NAME, claims);
                 }).authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
