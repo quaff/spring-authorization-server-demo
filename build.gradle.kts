@@ -1,5 +1,5 @@
 plugins {
-	id("org.springframework.boot").version("3.5.15")
+	id("org.springframework.boot").version("4.1.0")
 	id("io.spring.dependency-management").version("latest.release")
 	java
 }
@@ -19,7 +19,7 @@ dependencies {
 	implementation("org.springframework.session:spring-session-data-redis")
     runtimeOnly("com.mysql:mysql-connector-j")
 
-	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
 	testImplementation("org.springframework.security:spring-security-test")
     testRuntimeOnly("com.h2database:h2")
 }
