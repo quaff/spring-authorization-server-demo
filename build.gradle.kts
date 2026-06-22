@@ -1,5 +1,5 @@
 plugins {
-	id("org.springframework.boot").version("3.5.4")
+	id("org.springframework.boot").version("3.5.15")
 	id("io.spring.dependency-management").version("latest.release")
 	java
 }
@@ -24,7 +24,7 @@ dependencies {
     testRuntimeOnly("com.h2database:h2")
 }
 
-tasks.withType<Test>() {
+tasks.withType<Test> {
 	useJUnitPlatform()
 }
 
