@@ -1,5 +1,7 @@
 package com.example;
 
+import org.jspecify.annotations.NonNull;
+
 import org.springframework.boot.security.oauth2.server.authorization.autoconfigure.servlet.OAuth2AuthorizationServerProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -35,12 +37,7 @@ import org.springframework.session.web.http.HttpSessionIdResolver;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.springframework.security.oauth2.server.authorization.token.OAuth2TokenClaimNames.*;
@@ -79,7 +76,7 @@ class AuthorizationServerConfiguration {
                                                                      SessionRepository<? extends Session> sessionRepository, ApiKeyService apiKeyService, UserDetailsService userDetailsService) {
         return new JdbcOAuth2AuthorizationService(jdbcOperations, registeredClientRepository) {
             @Override
-            public OAuth2Authorization findByToken(String token, OAuth2TokenType tokenType) {
+            public OAuth2Authorization findByToken(@NonNull String token, OAuth2TokenType tokenType) {
                 if (tokenType == null || tokenType.equals(OAuth2TokenType.ACCESS_TOKEN)) {
                     if (token.startsWith(SESSION_ID_PREFIX)) {
                         Session session = sessionRepository.findById(token);
@@ -134,8 +131,8 @@ class AuthorizationServerConfiguration {
         if (client == null) {
             return null;
         }
-        Set<String> scopes = authorities.stream().filter(ga -> ga.getAuthority().startsWith("SCOPE_"))
-                .map(ga -> ga.getAuthority().substring(6)).collect(Collectors.toSet());
+        Set<String> scopes = authorities.stream().map(GrantedAuthority::getAuthority).filter(auth -> auth != null && auth.startsWith("ROLE_"))
+                .map(auth -> auth.substring(6)).collect(Collectors.toSet());
         OAuth2AccessToken accessToken = new OAuth2AccessToken(OAuth2AccessToken.TokenType.BEARER, token, issuedAt, expiresAt
                 .plus(Duration.ofDays(30)), scopes);
         OAuth2Authorization.Builder builder = OAuth2Authorization.withRegisteredClient(client);
@@ -144,14 +141,16 @@ class AuthorizationServerConfiguration {
                             SUB, username,
                             AUD, List.of(DEFAULT_CLIENT_ID),
                             NBF, issuedAt,
-                            ISS, authorizationServerProperties.getIssuer(),
                             JTI, token
                     ));
+                    if (authorizationServerProperties.getIssuer() != null) {
+                        claims.put(ISS, authorizationServerProperties.getIssuer());
+                    }
                     if (!scopes.isEmpty()) {
                         claims.put("scope", String.join(" ", scopes));
                     }
-                    Set<String> roles = authorities.stream().filter(ga -> ga.getAuthority().startsWith("ROLE_"))
-                            .map(ga -> ga.getAuthority().substring(5)).collect(Collectors.toSet());
+                    Set<String> roles = authorities.stream().map(GrantedAuthority::getAuthority).filter(auth -> auth != null && auth.startsWith("ROLE_"))
+                            .map(auth -> auth.substring(5)).collect(Collectors.toSet());
                     if (!roles.isEmpty()) {
                         claims.put("role", roles);
                     }
